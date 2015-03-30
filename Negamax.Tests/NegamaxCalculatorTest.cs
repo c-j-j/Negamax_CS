@@ -8,11 +8,8 @@ namespace Negamax.Tests
     [TestFixture]
     public class NegamaxCalculatorTestulatorTest
     {
-
         Predicate<int> alwaysTruePredicate = _ => true;
-        readonly Func<int, char, int> EchoIntFunction = (i, c) => i;
-        const char PLAYER = 'p';
-        const char OPPONENT = 'o';
+        readonly Func<int, int> EchoIntFunction = i => i;
 
         /*
          * 0("NodeDatum") - no children
@@ -22,46 +19,45 @@ namespace Negamax.Tests
         public void ScoreOfBestNodeIsCalculatedUsingPassedInFunction()
         {
             const int score = 10;
-            Func<int, char,  int> scoreCalculator = (i, c) => score;
-            var bestNode = new NegamaxCalculator<int, char, string>(alwaysTruePredicate, scoreCalculator, null, PLAYER, OPPONENT)
-                .Negamax(new Node<int, string>(0, "NodeDatum"));
+            Func<int, int> scoreCalculator = i => score;
+            var bestNode = new NegamaxCalculator<int>(alwaysTruePredicate, scoreCalculator, null)
+                .Negamax(0);
             Assert.AreEqual(score, bestNode.Score);
         }
 
         /*
-         * 0("NodeDatum") - no children
+         * 0 - no children
          */
         [Test]
         public void ValueOfBestNodeIsValueOfTerminalNode()
         {
             const int node = 0;
-            const string childNodeValue = "NodeDatum";
-            var bestNode = new NegamaxCalculator<int, char, string>(alwaysTruePredicate, EchoIntFunction, null, PLAYER, OPPONENT)
-                .Negamax(new Node<int, string>(node, childNodeValue));
-            Assert.AreEqual(childNodeValue, bestNode.Node.Datum);
+            var bestNode = new NegamaxCalculator<int>(alwaysTruePredicate, EchoIntFunction, null)
+                .Negamax(node);
+            Assert.AreEqual(node, bestNode.Node);
         }
 
-        /* 0("ParentNode") parent node
-         * \ 1("A") child node
+        /* 0 parent node
+         * \ 1 child node
          * best node = 1
          */
         [Test]
         public void BestNodeValueWillBeTheSingleChildOfParentNode()
         {
-            const string childNodeValue = "A";
-            var bestNode = RunNegamaxWithChild(new Node<int, string>(1, childNodeValue));
-            Assert.AreEqual(bestNode.Node.Datum, childNodeValue);
+            var childNode = 1;
+            var bestNode = RunNegamaxWithChild(childNode);
+            Assert.AreEqual(bestNode.Node, childNode);
         }
 
-        /* 0("ParentNode") parent node
-         * \ 1("A") child node
+        /* 0 parent node
+         * \ 1 child node
          * score of best child node = -1
          */
         [Test]
         public void ScoreOfBestNodeWillBeNegatedScoreOfOnlyChildNode()
         {
             const int childNode = 1;
-            var bestNode = RunNegamaxWithChild(new Node<int, string>(childNode, "A"));
+            var bestNode = RunNegamaxWithChild(childNode);
             Assert.AreEqual(bestNode.Score, -childNode);
         }
 
@@ -72,19 +68,17 @@ namespace Negamax.Tests
         [Test]
         public void BestNodeWillBeTheChildWithHighestScore()
         {
-            const string childNodeValueB = "B";
-            var bestNode = RunNegamaxWithChildren(BuildListOfChildren(NewTrackingNode(1, "A"),
-                                   NewTrackingNode(2, childNodeValueB)));
-            Assert.AreEqual(childNodeValueB, bestNode.Node.Datum);
+            var bestNode = RunNegamaxWithChildren(BuildListOfChildren(1, 2));
+            Assert.AreEqual(2, bestNode.Node);
         }
 
-        static NegamaxCalculator<int, char, string>.ScoredNode RunNegamaxWithChildren(IEnumerable<Node<int, string>> children)
+        static NegamaxCalculator<int>.ScoredNode RunNegamaxWithChildren(IEnumerable<int> children)
         {
             const int parentNode = 0;
             var childExtractor = ParentToChildExtractorFunction(parentNode, children);
-            var bestNode = new NegamaxCalculator<int, char, string>(TerminateAtChildNode(parentNode),
-                               ScoreCalculator(), childExtractor, PLAYER, OPPONENT)
-                .Negamax(new Node<int, string>(parentNode, "0"));
+            var bestNode = new NegamaxCalculator<int>(TerminateAtChildNode(parentNode),
+                               ScoreCalculatingFunction(), childExtractor)
+                .Negamax(0);
             return bestNode;
         }
 
@@ -93,9 +87,9 @@ namespace Negamax.Tests
             return new Node<int, string>(node, tracker);
         }
 
-        static Func<int, char, int> ScoreCalculator()
+        static Func<int, int> ScoreCalculatingFunction()
         {
-            return (x, c) => c == OPPONENT ? -x : x;
+            return x => -x;
         }
 
         static Predicate<int> TerminateAtChildNode(int parentNode)
@@ -103,24 +97,23 @@ namespace Negamax.Tests
             return x => x != parentNode;
         }
 
-        static Func<int, char, IEnumerable<Node<int, string>>> ParentToChildExtractorFunction(int parentNode,
-                IEnumerable<Node<int, string>> children)
+        static Func<int, IEnumerable<int>> ParentToChildExtractorFunction(int parentNode,
+                IEnumerable<int> children)
         {
-            return (x, c) => x == parentNode ? children : Enumerable.Empty<Node<int, string>>();
+            return x => x == parentNode ? children : Enumerable.Empty<int>();
         }
 
-        static IList<Node<int, string>> BuildListOfChildren(params Node<int, string>[] children)
+        static IList<int> BuildListOfChildren(params int[] children)
         {
             return children.ToList();
         }
 
-        private NegamaxCalculator<int, char, string>.ScoredNode RunNegamaxWithChild(Node<int, string> childNodeTracker)
+        private NegamaxCalculator<int>.ScoredNode RunNegamaxWithChild(int childNode)
         {
             const int parentNode = 0;
-            var childExtractor = ParentToChildExtractorFunction(parentNode, BuildListOfChildren(childNodeTracker));
-            var parentNodeTracker = new Node<int, string>(parentNode, "ParentNodeValue");
-            var bestNode = new NegamaxCalculator<int, char, string>(TerminateAtChildNode(parentNode),
-                    EchoIntFunction, childExtractor, PLAYER, OPPONENT).Negamax(parentNodeTracker);
+            var childExtractor = ParentToChildExtractorFunction(parentNode, BuildListOfChildren(childNode));
+            var bestNode = new NegamaxCalculator<int>(TerminateAtChildNode(parentNode),
+                    EchoIntFunction, childExtractor).Negamax(parentNode);
             return bestNode;
         }
 

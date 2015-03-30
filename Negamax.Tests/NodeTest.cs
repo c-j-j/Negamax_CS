@@ -5,7 +5,6 @@ namespace Negamax.Test
     [TestFixture]
     public class NodeTest
     {
-
         static void NewMethod(Node<int, string> trackingNode)
         {
             Assert.AreEqual(trackingNode.State, 0);

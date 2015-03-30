@@ -3,48 +3,37 @@ using System.Collections.Generic;
 
 namespace Negamax
 {
-    public class NegamaxCalculator<TState, TPlayer, TDatum>
+    public class NegamaxCalculator<TNode>
     {
-        //using ScoredNode = Tuple<int, TScore, TDatum>;
-        private readonly Func<TState, TPlayer, int> scoreCalculator;
-        private readonly Predicate<TState> terminalNodePredicate;
-        private readonly Func<TState, TPlayer, IEnumerable<Node<TState, TDatum>>> childNodeExtractor;
-        private readonly TPlayer player;
-        private readonly TPlayer opponent;
+        private readonly Func<TNode, int> scoreCalculator;
+        private readonly Predicate<TNode> terminalNodePredicate;
+        private readonly Func<TNode, IEnumerable<TNode>> childNodeExtractor;
 
-        public NegamaxCalculator(Predicate<TState> terminalNodePredicate,
-            Func<TState, TPlayer, int> scoreCalculator,
-            Func<TState, TPlayer, IEnumerable<Node<TState, TDatum>>> childNodeExtractor,
-            TPlayer player, TPlayer opponent)
+        public NegamaxCalculator(Predicate<TNode> terminalNodePredicate,
+            Func<TNode, int> scoreCalculator,
+            Func<TNode, IEnumerable<TNode>> childNodeExtractor)
         {
             this.childNodeExtractor = childNodeExtractor;
             this.terminalNodePredicate = terminalNodePredicate;
             this.scoreCalculator = scoreCalculator;
-            this.player = player;
-            this.opponent = opponent;
         }
 
-        public ScoredNode Negamax(Node<TState, TDatum> node)
+        public TNode FindBestNode(TNode node)
         {
-            return Negamax(node, player);
+            return Negamax(node).Node;
         }
 
-        //Potential changes
-        //Score is calculated by working out who the current player is, not rely on it being parsed in
-        //TDatum maybe not necessary, can calculate the best move from the best possible next game state
-        //Using tuple instead of ScoredNode
-        public ScoredNode Negamax(Node<TState, TDatum> node, TPlayer currentPlayer,
-            int alpha = -1000, int beta = 1000)
+        public ScoredNode Negamax(TNode node, int alpha = -1000, int beta = 1000)
         {
             if (NodeIsTerminal(node))
             {
-                return new ScoredNode(ScoreOfNode(node, currentPlayer), node);
+                return new ScoredNode(ScoreOfNode(node), node);
             }
 
-            var bestNode = new ScoredNode(-1000, null);
-            foreach (var childNode in GetChildren(node, currentPlayer))
+            var bestNode = new ScoredNode(-1000, node);
+            foreach (var childNode in GetChildren(node))
             {
-                var score = -Negamax(childNode, SwapPlayer(currentPlayer), -beta, -alpha).Score;
+                var score = -Negamax(childNode, -beta, -alpha).Score;
                 if (score > bestNode.Score)
                 {
                     bestNode = new ScoredNode(score, childNode);
@@ -59,36 +48,31 @@ namespace Negamax
             return bestNode;
         }
 
-        private IEnumerable<Node<TState,TDatum>> GetChildren(Node<TState, TDatum> node, TPlayer currentPlayer)
+        private IEnumerable<TNode> GetChildren(TNode node)
         {
-            return childNodeExtractor(node.State, currentPlayer);
+            return childNodeExtractor(node);
         }
 
-        private int ScoreOfNode(Node<TState, TDatum> node, TPlayer currentPlayer)
+        private int ScoreOfNode(TNode node)
         {
-            return scoreCalculator(node.State, currentPlayer);
+            return scoreCalculator(node);
         }
 
-        private bool NodeIsTerminal(Node<TState, TDatum> node)
+        private bool NodeIsTerminal(TNode node)
         {
-            return terminalNodePredicate(node.State);
-        }
-
-        private TPlayer SwapPlayer(TPlayer currentPlayer)
-        {
-            return currentPlayer.Equals(opponent) ? player : opponent;
+            return terminalNodePredicate(node);
         }
 
         public class ScoredNode
         {
-            public ScoredNode(int score, Node<TState, TDatum>  node)
+            public ScoredNode(int score, TNode node)
             {
                 Score = score;
                 Node = node;
             }
 
             public int Score{ get; set; }
-            public Node<TState, TDatum> Node { get; set; }
+            public TNode Node { get; set; }
         }
 
     }
